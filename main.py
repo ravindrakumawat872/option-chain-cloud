@@ -1,10 +1,7 @@
 import requests
-import pandas as pd
+import json
 
-symbol = "NIFTY"
-
-base_url = "https://www.nseindia.com"
-api_url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
+url = "https://www.nseindia.com/api/option-chain-indices?symbol=NIFTY"
 
 headers = {
     "User-Agent": "Mozilla/5.0",
@@ -15,29 +12,24 @@ headers = {
 session = requests.Session()
 
 # First request to get cookies
-session.get(base_url, headers=headers)
+session.get("https://www.nseindia.com", headers=headers)
 
-# Actual API request
-response = session.get(api_url, headers=headers)
+# Actual data request
+response = session.get(url, headers=headers)
 
-if response.status_code == 200:
+try:
     data = response.json()
-    records = data["records"]["data"]
+except:
+    print("❌ Failed to fetch JSON data")
+    print(response.text)
+    exit()
 
-    rows = []
+if "records" not in data:
+    print("❌ 'records' key not found")
+    print(data)
+    exit()
 
-    for item in records:
-        if "CE" in item and "PE" in item:
-            rows.append({
-                "Strike": item["strikePrice"],
-                "CE_OI": item["CE"]["openInterest"],
-                "PE_OI": item["PE"]["openInterest"]
-            })
+records = data["records"]["data"]
 
-    df = pd.DataFrame(rows)
-
-    print("Option Chain Data (Top 5 Rows):")
-    print(df.head())
-
-else:
-    print("Failed to fetch data:", response.status_code)
+print("✅ Data fetched successfully")
+print("Total strikes:", len(records))
