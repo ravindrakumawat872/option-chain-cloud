@@ -20,7 +20,7 @@ client = gspread.authorize(creds)
 
 sheet = client.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
 
-# ===== READ STOCK NAME FROM A2 =====
+# ===== READ STOCK NAME =====
 
 stock_name = sheet.acell("A2").value
 
@@ -30,21 +30,33 @@ if not stock_name:
 
 stock_name = stock_name.strip().upper()
 
-# ===== NSE OPTION CHAIN FETCH =====
+# ===== NSE FETCH (Improved) =====
 
-url = f"https://www.nseindia.com/api/option-chain-indices?symbol={stock_name}"
+session = requests.Session()
 
 headers = {
     "User-Agent": "Mozilla/5.0",
     "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br"
+    "Referer": "https://www.nseindia.com/",
+    "Connection": "keep-alive"
 }
 
-session = requests.Session()
-session.get("https://www.nseindia.com", headers=headers)
+# First request to get cookies
+session.get("https://www.nseindia.com", headers=headers, timeout=10)
 
-response = session.get(url, headers=headers)
+# Determine correct endpoint
+if stock_name in ["NIFTY", "BANKNIFTY", "FINNIFTY"]:
+    url = f"https://www.nseindia.com/api/option-chain-indices?symbol={stock_name}"
+else:
+    url = f"https://www.nseindia.com/api/option-chain-equities?symbol={stock_name}"
+
+response = session.get(url, headers=headers, timeout=10)
+
 data = response.json()
+
+if "records" not in data:
+    print("NSE blocked request or invalid symbol")
+    exit()
 
 records = data["records"]
 expiry = records["expiryDates"][0]
@@ -58,14 +70,8 @@ for item in option_data:
     if item.get("expiryDate") == expiry:
         strike = item["strikePrice"]
 
-        ce_ltp = ""
-        pe_ltp = ""
-
-        if "CE" in item:
-            ce_ltp = item["CE"].get("lastPrice", "")
-
-        if "PE" in item:
-            pe_ltp = item["PE"].get("lastPrice", "")
+        ce_ltp = item.get("CE", {}).get("lastPrice", "")
+        pe_ltp = item.get("PE", {}).get("lastPrice", "")
 
         rows.append([
             stock_name,
@@ -76,7 +82,7 @@ for item in option_data:
             pe_ltp
         ])
 
-# ===== CLEAR & UPDATE SHEET =====
+# ===== UPDATE SHEET =====
 
 sheet.clear()
 
