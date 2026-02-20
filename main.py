@@ -4,9 +4,9 @@ import os
 import json
 from oauth2client.service_account import ServiceAccountCredentials
 
-# ===== GOOGLE SHEETS SETUP =====
+# ===== GOOGLE SHEET CONFIG =====
 
-SPREADSHEET_ID = "1s5Notsc-o1eiqTzMdq-l6XRKE67Bfly8kNwkHo6fhUY"
+SPREADSHEET_ID = "1s5Notsc-o1eiqTzMdq-I6XRKE67Bfly8kNwkHo6fhUY"
 SHEET_NAME = "OptionChain"
 
 scope = [
@@ -20,7 +20,7 @@ client = gspread.authorize(creds)
 
 sheet = client.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
 
-# ===== READ STOCK NAME =====
+# ===== READ STOCK NAME FROM A2 =====
 
 stock_name = sheet.acell("A2").value
 
@@ -30,7 +30,7 @@ if not stock_name:
 
 stock_name = stock_name.strip().upper()
 
-# ===== FETCH OPTION CHAIN =====
+# ===== NSE OPTION CHAIN FETCH =====
 
 url = f"https://www.nseindia.com/api/option-chain-indices?symbol={stock_name}"
 
@@ -42,8 +42,8 @@ headers = {
 
 session = requests.Session()
 session.get("https://www.nseindia.com", headers=headers)
-response = session.get(url, headers=headers)
 
+response = session.get(url, headers=headers)
 data = response.json()
 
 records = data["records"]
@@ -81,7 +81,6 @@ for item in option_data:
 sheet.clear()
 
 sheet.append_row(["Stock", "Expiry", "SPOT", "STRIKE", "CE LTP", "PE LTP"])
-
 sheet.append_rows(rows)
 
 print("Sheet updated successfully!")
